@@ -49,7 +49,8 @@ function sumtok(s::Int, numbers::Array{Int,1})
 
 	for cusum = keys(cumsums)
 		if haskey(cumsums, cusum-s) && (cumsums[cusum-s] <= cumsums[cusum] - 2)
-			return numbers[cumsums[cusum-s]] + numbers[cumsums[cusum]]
+			subseq = numbers[(cumsums[cusum-s]+1):cumsums[cusum]]
+			return maximum(subseq) + minimum(subseq)
 		end
 	end
 	return 0
