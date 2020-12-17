@@ -12,14 +12,14 @@ function execute(codefile::String)
 	for line = prog
 		if line[1] == "mask"
 			bc.mask = line[3]
-			println("Mask is now ", bc.mask)
+			# println("Mask is now ", bc.mask)
 		else
 			maddr = parse(Int,line[1][5:end-1])
 			mval = parse(Int,line[3])
 			addrs = decode(bc.mask, maddr)
 			for a = addrs
 				bc.mem[a] = mval
-				println("Writing ", mval, " to ", a)
+				# println("Writing ", mval, " to ", a)
 			end
 		end
 	end
