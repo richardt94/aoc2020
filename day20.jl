@@ -12,30 +12,39 @@ function readtiles(f::String)
     tileIDs, tiles
 end
 
+flip(a2d::Array{Bool,2}) = a2d[end:-1:1, :]
+rotate(a2d::Array{Bool,2}) = a2d'[:, end:-1:1]
 
+function fliprot(o::Int, a2d::Array{Bool,2})
+    if o >= 4; a2d = flip(a2d) end
+    for i = 1:o%4; a2d = rotate(a2d) end
+    a2d
+end
 
 function buildimage(f::String)
     #edges are stored in [upper, right, lower, left] order.
     #vertical edges (left, right) are stored top-to-bottom
     #horizontal edges (upper, lower) are stored left-to-right
-    rotate(edges) = [edges[4][end:-1:1], edges[1], edges[2][end:-1:1], edges[3]]
-    flip(edges) = [edges[3], edges[2][end:-1:1], edges[1], edges[4][end:-1:1]]
+    rotateedge(edges) = [edges[4][end:-1:1], edges[1], edges[2][end:-1:1], edges[3]]
+    flipedge(edges) = [edges[3], edges[2][end:-1:1], edges[1], edges[4][end:-1:1]]
 
-    function fliprot(orientation, edges)
+    function fliprotedge(orientation, edges)
         if orientation ÷ 4 > 0
-            edges = flip(edges)
+            edges = flipedge(edges)
         end
         for i=1:orientation%4
-            edges = rotate(edges)
+            edges = rotateedge(edges)
         end
         edges
     end
     (tileIDs, tiles) = readtiles(f)
-    edgesets = [[tile[1,:], tile[:, end], tile[end,:], tile[:,1]] for tile in tiles]
+    edgesets = [[tile[:,1], tile[end, :], tile[:,end], tile[1,:]] for tile in tiles]
 
+    tilesdict = Dict{Int, Array{Bool,2}}()
     edgesdict = Dict{Int,Array{Array{Int,1},1}}()
-    for (edges, tID) = zip(edgesets, tileIDs)
+    for (edges, tID, tile) = zip(edgesets, tileIDs, tiles)
         edgesdict[tID] = edges
+        tilesdict[tID] = transpose(tile)
     end
 
     tidset = Set{Int}(tileIDs)
@@ -56,12 +65,12 @@ function buildimage(f::String)
 
     function solve(tID, orientation, x, y)
         #does this tile fit here? if not, stop early and return
-        edges = fliprot(orientation, edgesdict[tID])
+        edges = fliprotedge(orientation, edgesdict[tID])
         if y > 1
             above = tID_sol[x,y-1]
             if above >= 0
-                edgeabove = fliprot(orient_sol[x,y-1], edgesdict[above])[3][:]
-                if !all(edges[3][:] .== edgeabove)
+                edgeabove = fliprotedge(orient_sol[x,y-1], edgesdict[above])[3][:]
+                if !all(edges[1][:] .== edgeabove)
                     return false
                 end
             end
@@ -69,7 +78,7 @@ function buildimage(f::String)
         if y < ntile
             below = tID_sol[x,y+1]
             if below >= 0
-                edgebelow = fliprot(orient_sol[x,y+1], edgesdict[below])[1][:]
+                edgebelow = fliprotedge(orient_sol[x,y+1], edgesdict[below])[1][:]
                 if !all(edges[3][:] .== edgebelow)
                     return false
                 end
@@ -78,7 +87,7 @@ function buildimage(f::String)
         if x > 1
             left = tID_sol[x-1,y]
             if left >= 0
-                edgeleft = fliprot(orient_sol[x-1,y], edgesdict[left])[2][:]
+                edgeleft = fliprotedge(orient_sol[x-1,y], edgesdict[left])[2][:]
                 if !all(edges[4][:] .== edgeleft)
                     return false
                 end
@@ -87,40 +96,37 @@ function buildimage(f::String)
         if x < ntile
             right = tID_sol[x+1,y]
             if right >= 0
-                edgeright = fliprot(orient_sol[x+1,y], edgesdict[right])[4][:]
+                edgeright = fliprotedge(orient_sol[x+1,y], edgesdict[right])[4][:]
                 if !all(edges[2][:] .== edgeright)
                     return false
                 end
             end
         end
 
-        # println("tid ", tID, " fits at ", x," ", y, orientation >= 4 ? " flipped and" : "", " rotated ",orientation % 4, " times")
         #delete this tile from the set so it cannot be reused, then write
         #the ID and orientation to the solution array
         delete!(tidset, tID)
         tID_sol[x,y] = tID
         orient_sol[x,y] = orientation
 
-        #if we've reached this point at the bottom-right tile then
-        #the board is solved
-        if (x, y) == (ntile, ntile)
+        #if we're at the last tile in the snake then we're done
+        if (ntile % 2 == 1 && (x, y) == (ntile, ntile)) || (ntile % 2 == 0 && (x,y) == (1, ntile))
             return true
         end
-
-        #make sure all the in-place messing with the tile IDs in recursive calls
-        #doesn't break our iteration over tile IDs
 
         nextloc = (0,0)
         #snake across the board
         if y % 2 == 1 && x < ntile
             nextloc = (x + 1, y)
         elseif y % 2 == 0 && x > 1
-            nextloc = (x - 1, y)
+            nextloc = (x-1, y)
         else
             nextloc = (x, y+1)
         end
 
-        for nextID = tidset
+        #make sure all the in-place messing with the tile IDs in recursive calls
+        #doesn't break our iteration over tile IDs
+        for nextID = copy(tidset)
             for orientation = 0:7
                 solved = solve(nextID, orientation, nextloc...)
                 if solved; return true end
@@ -141,10 +147,48 @@ function buildimage(f::String)
         for orientation = 0:7
             solved = solve(cornertile, orientation, 1, 1)
             if solved
-                return tID_sol[1,1]*tID_sol[1,end]*tID_sol[end,1]*tID_sol[end,end]
+                tileset = [[fliprot(orient_sol[i,j], tilesdict[tID_sol[i,j]])[2:end-1,2:end-1] for i in 1:ntile] for j in 1:ntile]
+                image = vcat([hcat(tilecol...) for tilecol in tileset]...)
+                return image
             end
         end
     end
 
-    return 0
+    nothing
+end
+
+function findmonster(image::Array{Bool,2})
+    monstertext = ["                  # ",
+                   "#    ##    ##    ###",
+                   " #  #  #  #  #  #   "]
+    str2bool(s) = [c == '#' for c = s]'
+    monster = vcat(str2bool.(monstertext)...)
+    println(monster)
+    monstermask = zeros(Bool, size(image))
+
+    for o = 0:7
+        trialmonster = fliprot(o, monster)
+        sy = size(trialmonster, 1)
+        sx = size(trialmonster, 2)
+        for y=1:(size(image,1) - sy + 1)
+            for x = 1:(size(image,2) - sx + 1)
+                if all((image[y:(y+sy-1), x:(x+sx-1)] .& trialmonster) .== trialmonster)
+                    monstermask[y:(y+sy-1), x:(x+sx-1)] .|= trialmonster
+                end
+            end
+        end
+    end
+
+    sum(image .⊻ monstermask)
+end
+
+function buildandfind(f::String)
+    tID_sol = buildimage(f)
+
+end
+
+function dispimage(image::Array{Bool,2})
+    chars = map(x->x ? '#' : '.', image)
+    [println(String(chars[i,:])) for i in 1:size(chars,1)]
+    nothing
 end
