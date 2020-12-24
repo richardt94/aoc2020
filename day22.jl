@@ -40,7 +40,7 @@ function recursivecombatstep!(p1::Array{Int,1}, p2::Array{Int,1}, visited::VSet)
     if Tuple([p1; 0; p2]) in visited
         p1wins = true
     elseif length(p1) >= p1card && length(p2) >= p2card
-        p1wins = recursivecombatgame!(p1[1:p1card], p2[1:p2card], sub = true)
+        p1wins = recursivecombatgame!(p1[1:p1card], p2[1:p2card])
     else
         p1wins = p1card > p2card
     end
@@ -50,14 +50,7 @@ function recursivecombatstep!(p1::Array{Int,1}, p2::Array{Int,1}, visited::VSet)
     return
 end
 
-function recursivecombatgame!(p1::Array{Int,1}, p2::Array{Int,1}; sub = false)
-    if sub
-        mp1 = maximum(p1)
-        mp2 = maximum(p2)
-        if max(mp1, mp2) > length(p1) + length(p2)
-            return mp1 > mp2
-        end
-    end
+function recursivecombatgame!(p1::Array{Int,1}, p2::Array{Int,1})
     visited = VSet()
     while length(p1) > 0 && length(p2) > 0
         recursivecombatstep!(p1, p2, visited)
