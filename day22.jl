@@ -28,39 +28,40 @@ end
 
 VSet = Set{Tuple}
 
-function recursivecombatstep!(p1::Array{Int,1}, p2::Array{Int,1}, visited::VSet)
-    # if root
-    #     println("Player 1"); println(join(p1," "))
-    #     println("Player 2"); println(join(p2," "))
-    #     println()
-    # end
-    p1card = popfirst!(p1)
-    p2card = popfirst!(p2)
-    p1wins = false
-    if Tuple([p1; 0; p2]) in visited
-        p1wins = true
-    elseif length(p1) >= p1card && length(p2) >= p2card
-        p1wins = recursivecombatgame!(p1[1:p1card], p2[1:p2card])
-    else
-        p1wins = p1card > p2card
+function recursivecombatgame!(p1::Array{Int,1}, p2::Array{Int,1}, windict::Dict{Tuple, Bool}; sub = true)
+    gametuple = Tuple([p1; 0; p2])
+    if haskey(windict, gametuple)
+        return windict[gametuple]
     end
-    push!(visited, Tuple([p1; 0; p2]))
-    prize = p1wins ? [p1card, p2card] : [p2card, p1card]
-    append!(p1wins ? p1 : p2, prize)
-    return
-end
-
-function recursivecombatgame!(p1::Array{Int,1}, p2::Array{Int,1})
+    mp1 = maximum(p1)
+    mp2 = maximum(p2)
+    ncards = length(p1) + length(p2)
+    if sub && mp1 > mp2 && mp1 > ncards
+        return true
+    end
     visited = VSet()
     while length(p1) > 0 && length(p2) > 0
-        recursivecombatstep!(p1, p2, visited)
+        p1card = popfirst!(p1)
+        p2card = popfirst!(p2)
+        p1wins = false
+        if Tuple([p1; 0; p2]) in visited
+            p1wins = true
+        elseif length(p1) >= p1card && length(p2) >= p2card
+            p1wins = recursivecombatgame!(p1[1:p1card], p2[1:p2card], windict)
+        else
+            p1wins = p1card > p2card
+        end
+        push!(visited, Tuple([p1; 0; p2]))
+        prize = p1wins ? [p1card, p2card] : [p2card, p1card]
+        append!(p1wins ? p1 : p2, prize)
     end
-    p1wins = (length(p1) > 0)
-    return p1wins
+    p1winsgame = (length(p1) > 0)
+    windict[gametuple] = p1winsgame
+    return p1winsgame
 end
 
 function playrecursivecombat(file::String)
     (ncards, p1, p2) = readdeck(file)
-    recursivecombatgame!(p1, p2)
+    recursivecombatgame!(p1, p2, Dict{Tuple, Bool}(), sub = false)
     sum([p1;p2] .* (ncards:-1:1))
 end
