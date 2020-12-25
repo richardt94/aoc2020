@@ -26,42 +26,42 @@ function playcombat(file::String)
     sum([p1;p2].*(ncards:-1:1))
 end
 
-VSet = Set{NTuple{2,Vector{Int}}}
-WDict = Dict{NTuple{2,Vector{Int}}, Bool}
-
-function recursivecombatgame!(p1::Vector{Int}, p2::Vector{Int}, windict::WDict; sub = true)
-    mp1 = maximum(p1)
-    mp2 = maximum(p2)
-    ncards = length(p1) + length(p2)
-    if sub && mp1 > mp2 && mp1 > ncards
-        return true
-    end
-    if haskey(windict, (p1, p2))
-        return windict[(p1,p2)]
-    end
-    visited = VSet()
+function recursivecombatgame!(p1::Vector{Int}, p2::Vector{Int})
+    # mp1 = maximum(p1)
+    # mp2 = maximum(p2)
+    # ncards = length(p1) + length(p2)
+    # if sub && mp1 > mp2 && mp1 > ncards
+    #     return true
+    # end
+    visited = Set()
     while length(p1) > 0 && length(p2) > 0
         p1card = popfirst!(p1)
         p2card = popfirst!(p2)
         p1wins = false
         if (p1, p2) in visited
-            p1wins = true
+            return true
         elseif length(p1) >= p1card && length(p2) >= p2card
-            p1wins = recursivecombatgame!(p1[1:p1card], p2[1:p2card], windict)
+            p1wins = recursivecombatgame!(p1[1:p1card], p2[1:p2card])
         else
             p1wins = p1card > p2card
         end
         push!(visited, (copy(p1), copy(p2)))
-        prize = p1wins ? [p1card, p2card] : [p2card, p1card]
-        append!(p1wins ? p1 : p2, prize)
+        if p1wins
+            push!(p1, p1card)
+            push!(p1, p2card)
+        else
+            push!(p2, p2card)
+            push!(p2, p1card)
+        end
     end
     p1winsgame = (length(p1) > 0)
-    windict[(copy(p1),copy(p2))] = p1winsgame
     return p1winsgame
 end
 
 function playrecursivecombat(file::String)
     (ncards, p1, p2) = readdeck(file)
-    recursivecombatgame!(p1, p2, WDict(), sub = false)
-    sum([p1;p2] .* (ncards:-1:1))
+    recursivecombatgame!(p1, p2)
+    score([p1;p2])
 end
+
+score(deck::Vector{Int}) = sum(deck .* (length(deck):-1:1))
