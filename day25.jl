@@ -20,7 +20,6 @@ end
 
 function encryptionkey(file::String, r::Int, m::Int)
     pubkeys = parse.(Int, readlines(file))
-    minind = argmin(pubkeys)
-    loopsizem = discretelog(pubkeys[minind], r, m)
-    transform(loopsizem, pubkeys[3-minind], m)
+    loopsizem = discretelog(pubkeys[2], r, m)
+    transform(loopsizem, pubkeys[1], m)
 end
