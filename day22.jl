@@ -26,14 +26,16 @@ function playcombat(file::String)
     sum([p1;p2].*(ncards:-1:1))
 end
 
-function recursivecombatgame!(p1::Vector{Int}, p2::Vector{Int})
-    # mp1 = maximum(p1)
-    # mp2 = maximum(p2)
-    # ncards = length(p1) + length(p2)
-    # if sub && mp1 > mp2 && mp1 > ncards
-    #     return true
-    # end
-    visited = Set()
+VSet = Set{NTuple{2,Vector{Int}}}
+
+function recursivecombatgame!(p1::Vector{Int}, p2::Vector{Int}; sub = true)
+    mp1 = maximum(p1)
+    mp2 = maximum(p2)
+    ncards = length(p1) + length(p2)
+    if sub && mp1 > mp2 && mp1 > ncards
+        return true
+    end
+    visited = VSet()
     while length(p1) > 0 && length(p2) > 0
         p1card = popfirst!(p1)
         p2card = popfirst!(p2)
@@ -46,13 +48,8 @@ function recursivecombatgame!(p1::Vector{Int}, p2::Vector{Int})
             p1wins = p1card > p2card
         end
         push!(visited, (copy(p1), copy(p2)))
-        if p1wins
-            push!(p1, p1card)
-            push!(p1, p2card)
-        else
-            push!(p2, p2card)
-            push!(p2, p1card)
-        end
+        prize = p1wins ? [p1card, p2card] : [p2card, p1card]
+        append!(p1wins ? p1 : p2, prize)
     end
     p1winsgame = (length(p1) > 0)
     return p1winsgame
@@ -60,7 +57,7 @@ end
 
 function playrecursivecombat(file::String)
     (ncards, p1, p2) = readdeck(file)
-    recursivecombatgame!(p1, p2)
+    recursivecombatgame!(p1, p2, sub = false)
     score([p1;p2])
 end
 
